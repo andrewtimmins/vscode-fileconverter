@@ -1,5 +1,9 @@
 [
     {
+        "caption": "Re-encode As…",
+        "command": "file_converter_encode_buffer"
+    },
+    {
         "caption": "FileConverter: Reveal Source File",
         "command": "file_converter_reveal_source"
     },

@@ -92,8 +92,9 @@ interpolation of any path.
   open.
 * **FileConverter: Encode Buffer** — available on a decoded view whose
   handler defines `encode_cmd`; encodes the current buffer and offers to
-  save it as a new file or overwrite the original. Also added to the
-  **File** menu as **Re-encode As…**, greyed out when not applicable.
+  save it as a new file or overwrite the original. Also added, greyed out
+  when not applicable, as **Re-encode As…** to both the **File** menu and
+  the editor's right-click context menu.
 * **FileConverter: Reveal Source File** / **Copy Source Path** — available
   on any decoded view; act on the original source file's path (stashed at
   decode time), since the decoded view itself has no `file_name()` of its
