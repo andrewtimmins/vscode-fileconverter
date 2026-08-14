@@ -88,6 +88,51 @@ Handlers are defined in `FileConverter.sublime-settings`, as a list under
 Commands are run directly (`shell=False`, argv list) — no shell
 interpolation of any path.
 
+### Beyond RISC OS
+
+The engine doesn't know anything about RISC OS -- the shipped handlers just
+happen to be for RISC OS tools. Anything that turns a binary into
+descriptive text fits the same shape. A few more handlers, verified against
+the real tools:
+
+```jsonc
+{
+    // Generic hex dump of any binary file.
+    "id": "hexdump",
+    "match": [".*\\.bin$"],
+    "decode_cmd": ["xxd", "${file}"],
+    "output_syntax": null,
+    "encode_cmd": null,
+    "env": {}
+},
+{
+    // Disassemble a compiled object file.
+    "id": "objdump",
+    "match": [".*\\.o$"],
+    "decode_cmd": ["objdump", "-d", "${file}"],
+    // Only if you have a third-party assembly syntax package installed --
+    // this one is NASM/Intel-flavoured, so it's an imperfect match for
+    // objdump's AT&T-syntax output on some platforms; null/plain text
+    // works fine too.
+    "output_syntax": "Packages/NASM x86 Assembly/Assembly x86.tmLanguage",
+    "encode_cmd": null,
+    "env": {}
+},
+{
+    // Media file metadata.
+    "id": "exif",
+    "match": [".*\\.(jpg|jpeg|png|heic)$"],
+    "decode_cmd": ["exiftool", "${file}"],
+    "output_syntax": null,
+    "encode_cmd": null,
+    "env": {}
+}
+```
+
+None of these are shipped by default (this package's own settings stay
+RISC-OS-focused, matching what it was actually built for) -- add them to
+your own `FileConverter.sublime-settings` if you want them.
+
 ## Commands
 
 * **FileConverter: Decode File** — manually decode the active view's file
