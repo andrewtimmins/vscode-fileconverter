@@ -217,7 +217,14 @@ def run_decode(window, source_path, handler, source_view=None):
         else:
             sublime.status_message('FileConverter: decoded {0}'.format(source_path))
 
-        new_view.set_read_only(True)
+        if not handler.get('encode_cmd'):
+            # No reverse direction for this format: lock it down, since
+            # there's nothing useful to do here but read it. Formats that
+            # do have an encode_cmd are left editable -- the whole point is
+            # to edit the decoded text and re-encode it. Either way, this
+            # view is never associated with the source file's path, so
+            # there's no risk of it being saved back over the source.
+            new_view.set_read_only(True)
 
         if source_view is not None and source_view.is_valid():
             source_view.close()

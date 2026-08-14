@@ -48,7 +48,10 @@
             "id": "riscos_drawfile",
             "match": [".*(\\\\|/)*,aff$"],
             "decode_cmd": ["riscos-decdrawf", "${file}"],
-            "output_syntax": null,
+            // decdrawf's brace-delimited text format happens to highlight
+            // nicely with the (unrelated, but structurally similar)
+            // Generic Config syntax.
+            "output_syntax": "Packages/Generic Config/GenericConfig.sublime-syntax",
             "encode_cmd": ["riscos-mkdrawf", "${input}", "${output}"],
             "encode_output_suffix": ",aff",
             "env": {}
