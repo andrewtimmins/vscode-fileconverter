@@ -1,0 +1,10 @@
+[
+    {
+        "caption": "FileConverter: Decode File",
+        "command": "file_converter_decode_file"
+    },
+    {
+        "caption": "FileConverter: Encode Buffer",
+        "command": "file_converter_encode_buffer"
+    }
+]

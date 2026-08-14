@@ -1,0 +1,52 @@
+{
+    // FileConverter: opens files matching a pattern by running them through
+    // an external command and streaming its stdout into a new read-only
+    // view, instead of loading the raw file as text.
+    //
+    // Commands are resolved via PATH by default (bare command names below),
+    // so this settings file isn't tied to any one machine's install layout.
+    // If a command name resolves to the wrong executable on your machine
+    // (e.g. a PATH ordering conflict), override "decode_cmd"/"encode_cmd"
+    // below with an absolute path, and/or use "env" to set any environment
+    // variables the tool needs (e.g. to disable behaviour that's flaky when
+    // the tool is invoked repeatedly in quick succession).
+
+    // Environment variables merged into every handler's subprocess
+    // environment (on top of the process environment). Per-handler "env"
+    // below is merged on top of this.
+    "env": {},
+
+    "handlers": [
+        {
+            // RISC OS Module / Absolute / Utility binaries: disassemble with
+            // riscos-dumpi and show the result as ARM assembly.
+            "id": "riscos_module",
+            "match": [
+                ".*(\\\\|/)*,ff8$",
+                ".*(\\\\|/)*,ffa$",
+                ".*(\\\\|/)*,ffc$"
+            ],
+            // Note: deliberately no "--colour" -- dumpi's ANSI escape codes
+            // would show as literal garbage in a plain view (Sublime views
+            // don't interpret them); output_syntax below handles
+            // highlighting instead.
+            "decode_cmd": ["riscos-dumpi", "${file}"],
+            "output_syntax": "Packages/ARM Assembly/Syntaxes/ARM Assembly.tmLanguage",
+            "encode_cmd": null,
+            "env": {}
+        },
+        {
+            // UNVERIFIED PLACEHOLDER: RISC OS Draw files. riscos-decdrawf /
+            // riscos-mkdrawf's exact command-line shape (stdin vs file
+            // argument, stdout vs an output-file flag) has not been
+            // confirmed yet. Do not rely on this handler until it has been
+            // checked against the real tools.
+            "id": "riscos_drawfile",
+            "match": [".*(\\\\|/)*,aff$"],
+            "decode_cmd": ["riscos-decdrawf", "${file}"],
+            "output_syntax": null,
+            "encode_cmd": ["riscos-mkdrawf", "${file}"],
+            "env": {}
+        }
+    ]
+}
