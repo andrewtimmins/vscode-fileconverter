@@ -71,7 +71,9 @@
             "id": "riscos_template",
             "match": [".*(\\\\|/)*,fec$"],
             "decode_cmd": ["riscos-ccres", "${file}", "/dev/stdout"],
-            "output_syntax": null,
+            // ccres's brace-delimited text format highlights nicely with
+            // Generic Config too, same as the drawfile handler above.
+            "output_syntax": "Packages/Generic Config/GenericConfig.sublime-syntax",
             "encode_cmd": ["riscos-ccres", "${input}", "${output}"],
             "encode_output_suffix": "",
             "env": {}
