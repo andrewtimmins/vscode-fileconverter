@@ -82,6 +82,11 @@ interpolation of any path.
 * **FileConverter: Encode Buffer** — available on a decoded view whose
   handler defines `encode_cmd`; encodes the current buffer and offers to
   save it as a new file or overwrite the original.
+* **FileConverter: Reveal Source File** / **Copy Source Path** — available
+  on any decoded view; act on the original source file's path (stashed at
+  decode time), since the decoded view itself has no `file_name()` of its
+  own for Sublime's built-in "Reveal in Finder"/"Copy File Path" to act on.
+  Also in the editor's right-click context menu on decoded views.
 
 ## Known limitations
 

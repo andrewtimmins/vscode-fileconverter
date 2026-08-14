@@ -79,6 +79,10 @@ def find_handler_by_id(handler_id):
     return None
 
 
+def _view_source_path(view):
+    return view.settings().get('file_converter_source_path')
+
+
 def _build_argv(cmd_template, substitutions):
     """substitutions maps a literal placeholder token (e.g. '${file}') to
     its replacement value; tokens not present in cmd_template are ignored."""
@@ -387,3 +391,45 @@ class FileConverterEncodeBufferCommand(sublime_plugin.TextCommand):
         thread = threading.Thread(target=worker)
         thread.daemon = True
         thread.start()
+
+
+class FileConverterRevealSourceCommand(sublime_plugin.TextCommand):
+    """Reveals the source file this decoded view came from, in the system
+    file manager. The decoded view has no file_name() of its own to reveal
+    -- that's deliberate -- so this uses the source path stashed in the
+    view's settings at decode time instead."""
+
+    def run(self, edit):
+        source_path = _view_source_path(self.view)
+        if not source_path:
+            return
+        platform = sublime.platform()
+        try:
+            if platform == 'osx':
+                subprocess.Popen(['open', '-R', source_path])
+            elif platform == 'windows':
+                subprocess.Popen(['explorer', '/select,{0}'.format(source_path)])
+            else:
+                subprocess.Popen(['xdg-open', os.path.dirname(source_path)])
+        except OSError as e:
+            sublime.error_message('FileConverter: failed to reveal {0}:\n{1}'.format(source_path, e))
+
+    def is_enabled(self):
+        return bool(_view_source_path(self.view))
+
+    is_visible = is_enabled
+
+
+class FileConverterCopySourcePathCommand(sublime_plugin.TextCommand):
+    """Copies the path of the source file this decoded view came from."""
+
+    def run(self, edit):
+        source_path = _view_source_path(self.view)
+        if source_path:
+            sublime.set_clipboard(source_path)
+            sublime.status_message('FileConverter: copied {0}'.format(source_path))
+
+    def is_enabled(self):
+        return bool(_view_source_path(self.view))
+
+    is_visible = is_enabled
