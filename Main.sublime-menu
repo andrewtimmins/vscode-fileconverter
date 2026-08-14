@@ -1,0 +1,10 @@
+[
+    {
+        "id": "file",
+        "children":
+        [
+            { "caption": "-" },
+            { "command": "file_converter_encode_buffer", "caption": "Re-encode As…" }
+        ]
+    }
+]
