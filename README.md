@@ -90,48 +90,29 @@ interpolation of any path.
 
 ### Beyond RISC OS
 
-The engine doesn't know anything about RISC OS -- the shipped handlers just
-happen to be for RISC OS tools. Anything that turns a binary into
-descriptive text fits the same shape. A few more handlers, verified against
-the real tools:
+The engine doesn't know anything about RISC OS -- the RISC OS handlers just
+happen to be the ones this package was originally built for. Anything that
+turns a binary into descriptive text fits the same shape, and three
+non-RISC-OS examples ship enabled by default so the package is useful from
+the first install, not just for RISC OS work:
 
-```jsonc
-{
-    // Generic hex dump of any binary file.
-    "id": "hexdump",
-    "match": [".*\\.bin$"],
-    "decode_cmd": ["xxd", "${file}"],
-    "output_syntax": null,
-    "encode_cmd": null,
-    "env": {}
-},
-{
-    // Disassemble a compiled object file.
-    "id": "objdump",
-    "match": [".*\\.o$"],
-    "decode_cmd": ["objdump", "-d", "${file}"],
-    // Only if you have a third-party assembly syntax package installed --
-    // this one is NASM/Intel-flavoured, so it's an imperfect match for
-    // objdump's AT&T-syntax output on some platforms; null/plain text
-    // works fine too.
-    "output_syntax": "Packages/NASM x86 Assembly/Assembly x86.tmLanguage",
-    "encode_cmd": null,
-    "env": {}
-},
-{
-    // Media file metadata.
-    "id": "exif",
-    "match": [".*\\.(jpg|jpeg|png|heic)$"],
-    "decode_cmd": ["exiftool", "${file}"],
-    "output_syntax": null,
-    "encode_cmd": null,
-    "env": {}
-}
-```
+* **hexdump** (`id: "hexdump"`) -- any `.bin` file through `xxd`.
+* **objdump** (`id: "objdump"`) -- any `.o` file through `objdump -d`. No
+  `output_syntax` is set by default: the bundled "NASM x86 Assembly"
+  package is Intel-flavoured, an imperfect match for objdump's AT&T-syntax
+  output on some platforms -- point it at whatever assembly syntax you
+  have installed, if any, and prefer it.
+* **exif** (`id: "exif"`) -- `.jpg`/`.jpeg`/`.png`/`.heic` metadata through
+  `exiftool`.
 
-None of these are shipped by default (this package's own settings stay
-RISC-OS-focused, matching what it was actually built for) -- add them to
-your own `FileConverter.sublime-settings` if you want them.
+All three are one-way (no `encode_cmd`) and were verified against real
+files before being written down. Because `.bin`/`.o`/`.jpg`/`.png` are far
+more common extensions than the RISC OS comma-suffixes, these *will*
+intercept any matching file you open, anywhere -- delete or narrow their
+`match` entries in your own `FileConverter.sublime-settings` (eg to a
+specific directory) if that's not what you want, or if you don't have
+`xxd`/`objdump`/`exiftool` installed and would rather they not error on
+open.
 
 ## Commands
 

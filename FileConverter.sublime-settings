@@ -81,6 +81,40 @@
             "encode_cmd": ["riscos-ccres", "${input}", "${output}"],
             "encode_output_suffix": "",
             "env": {}
+        },
+        {
+            // Generic hex dump of any binary file. Not RISC OS specific --
+            // included so the package is useful from the first install,
+            // not just for RISC OS. Verified against a real binary file.
+            "id": "hexdump",
+            "match": [".*\\.bin$"],
+            "decode_cmd": ["xxd", "${file}"],
+            "output_syntax": null,
+            "encode_cmd": null,
+            "env": {}
+        },
+        {
+            // Disassemble a compiled object file. Verified against a real
+            // .o file. output_syntax is left null since the bundled
+            // "NASM x86 Assembly" package is Intel-flavoured and would be
+            // an imperfect match for objdump's AT&T-syntax output on some
+            // platforms -- point it at whatever assembly syntax you have
+            // installed, if any, and prefer it.
+            "id": "objdump",
+            "match": [".*\\.o$"],
+            "decode_cmd": ["objdump", "-d", "${file}"],
+            "output_syntax": null,
+            "encode_cmd": null,
+            "env": {}
+        },
+        {
+            // Media file metadata. Verified against a real PNG.
+            "id": "exif",
+            "match": [".*\\.(jpg|jpeg|png|heic)$"],
+            "decode_cmd": ["exiftool", "${file}"],
+            "output_syntax": null,
+            "encode_cmd": null,
+            "env": {}
         }
     ]
 }
