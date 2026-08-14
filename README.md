@@ -1,5 +1,7 @@
 # FileConverter
 
+[![CI](https://github.com/gerph/sublimetext-fileconverter/actions/workflows/ci.yml/badge.svg)](https://github.com/gerph/sublimetext-fileconverter/actions/workflows/ci.yml)
+
 A Sublime Text plugin that opens files matching a configured pattern by
 running them through an external command and streaming its output into a
 new read-only view, instead of loading the raw file as text.
@@ -18,12 +20,13 @@ is streamed (as it's produced — useful for slow tools, or tools whose
 output would otherwise not appear until they finish) into a brand new,
 detached scratch view. The view is never associated with the original
 file's path, so there is no risk of accidentally saving the decoded output
-back over the source file; it's also marked read-only once the command
-finishes.
+back over the source file.
 
 Some tools support the reverse direction too — turning an edited text
 representation back into the original binary format. Where a handler
-defines an `encode_cmd`, the "FileConverter: Encode Buffer" command runs it
+defines an `encode_cmd`, the decoded view stays editable (rather than being
+locked read-only, which is what happens for formats with no reverse
+direction) and the "FileConverter: Encode Buffer" command runs the encoder
 and offers to save the result as a new file or overwrite the original
 (with confirmation).
 
@@ -57,8 +60,8 @@ Handlers are defined in `FileConverter.sublime-settings`, as a list under
     // This isn't a true incremental stream (the tool doesn't offer one):
     // the whole result appears at once. If the tool happens to accept
     // "/dev/stdout" as a plain output-file argument, prefer that instead
-    // (as the riscos_template handler below does) to get real streaming
-    // via the default "stdout" mode.
+    // (as the riscos_ccres handler in the shipped settings does) to get
+    // real streaming via the default "stdout" mode.
     "decode_mode": "stdout",
     // Optional syntax to apply to the decoded view.
     "output_syntax": "Packages/ARM Assembly/Syntaxes/ARM Assembly.tmLanguage",
@@ -93,8 +96,9 @@ interpolation of any path.
 * **FileConverter: Encode Buffer** — available on a decoded view whose
   handler defines `encode_cmd`; encodes the current buffer and offers to
   save it as a new file or overwrite the original. Also added, greyed out
-  when not applicable, as **Re-encode As…** to both the **File** menu and
-  the editor's right-click context menu.
+  when not applicable (including when the decode itself failed, since
+  there'd be nothing sensible to re-encode), as **Re-encode As…** to both
+  the **File** menu and the editor's right-click context menu.
 * **FileConverter: Reveal Source File** / **Copy Source Path** — available
   on any decoded view; act on the original source file's path (stashed at
   decode time), since the decoded view itself has no `file_name()` of its
@@ -114,6 +118,24 @@ interpolation of any path.
 * Clone or copy this directory into the Sublime Text `Packages` folder
   (`Preferences | Browse Packages...`) as `FileConverter`.
 * Restart Sublime Text.
+
+## Development / testing
+
+The plugin logic can be exercised outside Sublime Text: `tests/conftest.py`
+stubs the `sublime`/`sublime_plugin` modules well enough to import
+`FileConverter.py` and drive its commands directly, so the test suite runs
+anywhere with Python and doesn't depend on any RISC OS tooling (the
+subprocess-integration tests use ordinary Unix tools like `printf`/`cp`
+standing in for the shape of a real handler, not the real ones).
+
+```
+pip install pytest
+python -m pytest tests/ -v
+```
+
+CI (`.github/workflows/ci.yml`) runs this on every push/PR, byte-compiles
+`FileConverter.py`, and includes a check that the source has no f-strings,
+since Sublime Text 3's bundled Python 3.3 doesn't support them.
 
 ## License
 
