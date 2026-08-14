@@ -20,7 +20,9 @@ is streamed (as it's produced — useful for slow tools, or tools whose
 output would otherwise not appear until they finish) into a brand new,
 detached scratch view. The view is never associated with the original
 file's path, so there is no risk of accidentally saving the decoded output
-back over the source file.
+back over the source file. Once decoding finishes successfully, the view
+jumps to the top — streaming scrolls to the end as content arrives so
+progress is visible, which isn't where you want to land once it's done.
 
 Some tools support the reverse direction too — turning an edited text
 representation back into the original binary format. Where a handler
@@ -87,6 +89,24 @@ Handlers are defined in `FileConverter.sublime-settings`, as a list under
 
 Commands are run directly (`shell=False`, argv list) — no shell
 interpolation of any path.
+
+### RISC OS handlers
+
+All verified against the real tools, including a decode → edit → encode →
+decode round trip for the reversible ones:
+
+* **riscos_module** (`,ff8`/`,ffa`/`,ffc`) — Module/Absolute/Utility
+  binaries disassembled with `riscos-dumpi`. One-way.
+* **riscos_drawfile** (`,aff`) — Draw files, via `riscos-decdrawf`/
+  `riscos-mkdrawf`. `riscos-mkdrawf` always appends `,aff` to whatever
+  output name it's given, hence `encode_output_suffix`.
+* **riscos_ccres** (`,fec` Wimp Template / `,fae` Toolbox Resource) — one
+  tool, `riscos-ccres`, auto-detects both the source filetype and the
+  decode/encode direction from content, so it covers both formats.
+* **riscos_basic** (`,ffb`) — tokenised BBC BASIC, via
+  `riscos-basicdetokenise`/`riscos-basictokenise`. Unlike the other
+  tools, `riscos-basicdetokenise` takes its input via `-i` rather than a
+  bare positional argument.
 
 ### Beyond RISC OS
 

@@ -83,6 +83,26 @@
             "env": {}
         },
         {
+            // RISC OS tokenised BASIC files. Verified against the real
+            // tools: riscos-basicdetokenise takes its input via -i (not a
+            // bare positional argument like the other tools) and writes to
+            // stdout when -o is omitted; riscos-basictokenise <infile>
+            // <outfile> writes exactly to the given output name (no
+            // auto-appended suffix). Round-tripped a real file: decode ->
+            // encode -> decode again produced identical text.
+            // output_syntax points at the installed "BBC BASIC Syntax"
+            // package (Packages/BBCBASIC, the loose dev copy of the same
+            // package, is a broken symlink on this machine -- this uses
+            // the separately-installed .sublime-package instead).
+            "id": "riscos_basic",
+            "match": [".*(\\\\|/)*,ffb$"],
+            "decode_cmd": ["riscos-basicdetokenise", "-i", "${file}"],
+            "output_syntax": "Packages/BBC BASIC Syntax/BBCBASIC.sublime-syntax",
+            "encode_cmd": ["riscos-basictokenise", "${input}", "${output}"],
+            "encode_output_suffix": "",
+            "env": {}
+        },
+        {
             // Generic hex dump of any binary file. Not RISC OS specific --
             // included so the package is useful from the first install,
             // not just for RISC OS. Verified against a real binary file.

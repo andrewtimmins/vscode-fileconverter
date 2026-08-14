@@ -279,6 +279,11 @@ def run_decode(window, source_path, handler, source_view=None):
             new_view.settings().set('file_converter_decode_failed', True)
         else:
             sublime.status_message('FileConverter: decoded {0}'.format(source_path))
+            # Streaming scrolls to the end as content arrives (so progress
+            # is visible); once finished, land somewhere more useful to
+            # read from. Left alone on failure, so the appended error
+            # message (which is at the end) stays in view.
+            new_view.run_command('move_to', {'to': 'bof'})
 
         if not handler.get('encode_cmd'):
             # No reverse direction for this format: lock it down, since
