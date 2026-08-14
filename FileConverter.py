@@ -8,8 +8,8 @@ import codecs
 import os
 import re
 import subprocess
-import tempfile
 import threading
+import uuid
 
 import sublime
 import sublime_plugin
@@ -47,6 +47,7 @@ def _compile_handlers(settings):
             'decode_cmd': h.get('decode_cmd'),
             'output_syntax': h.get('output_syntax'),
             'encode_cmd': h.get('encode_cmd'),
+            'encode_output_suffix': h.get('encode_output_suffix') or '',
             'env': h.get('env') or {},
         })
     return handlers
@@ -78,10 +79,12 @@ def find_handler_by_id(handler_id):
     return None
 
 
-def _build_argv(cmd_template, file_path):
+def _build_argv(cmd_template, substitutions):
+    """substitutions maps a literal placeholder token (e.g. '${file}') to
+    its replacement value; tokens not present in cmd_template are ignored."""
     argv = []
     for arg in cmd_template:
-        argv.append(file_path if arg == '${file}' else arg)
+        argv.append(substitutions.get(arg, arg))
     return argv
 
 
@@ -104,9 +107,10 @@ class DecodeProcess(object):
     at all, in which case stderr_text holds the launch error message.
     """
 
-    def __init__(self, argv, env, on_data, on_done):
+    def __init__(self, argv, env, cwd, on_data, on_done):
         self.argv = argv
         self.env = env
+        self.cwd = cwd
         self.on_data = on_data
         self.on_done = on_done
         self.proc = None
@@ -123,6 +127,7 @@ class DecodeProcess(object):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 stdin=subprocess.DEVNULL,
+                cwd=self.cwd,
                 env=self.env,
             )
         except OSError as e:
@@ -185,7 +190,12 @@ def run_decode(window, source_path, handler, source_view=None):
 
     sublime.status_message('FileConverter: decoding {0}...'.format(source_path))
 
-    argv = _build_argv(handler['decode_cmd'], source_path)
+    # Run with cwd set to the file's own directory and pass its bare
+    # basename for "${file}", rather than an absolute path: some external
+    # tools (verified with a Docker-wrapped riscos-mkdrawf) only resolve
+    # paths correctly relative to the process's working directory.
+    cwd = os.path.dirname(source_path) or '.'
+    argv = _build_argv(handler['decode_cmd'], {'${file}': os.path.basename(source_path)})
     env = _build_env(handler)
 
     def on_data(text):
@@ -212,7 +222,7 @@ def run_decode(window, source_path, handler, source_view=None):
         if source_view is not None and source_view.is_valid():
             source_view.close()
 
-    DecodeProcess(argv, env, on_data, on_done).start()
+    DecodeProcess(argv, env, cwd, on_data, on_done).start()
 
 
 class FileConverterLoadListener(sublime_plugin.EventListener):
@@ -261,12 +271,16 @@ class FileConverterDecodeFileCommand(sublime_plugin.WindowCommand):
 class FileConverterEncodeBufferCommand(sublime_plugin.TextCommand):
     """Command Palette entry: "FileConverter: Encode Buffer".
 
-    UNVERIFIED: assumes the encode command takes its input as a file
-    argument (the buffer's text written to a temp file, substituted for
-    "${file}") and writes the encoded binary to stdout, mirroring
-    decode_cmd's shape. Adjust _run_encode_and_write() once the real tool's
-    CLI (e.g. riscos-mkdrawf) is confirmed -- everything else in this
-    command (dialogs, destination handling) is independent of that detail.
+    Runs handler['encode_cmd'], substituting "${input}" with a temp file
+    holding the buffer's text and "${output}" with the desired output
+    basename, both relative to a working directory set to the destination
+    folder -- verified against riscos-mkdrawf, which only resolves paths
+    correctly relative to cwd, not given as absolute paths. If the handler
+    sets "encode_output_suffix" (e.g. ",aff" for riscos-mkdrawf, which
+    always appends it to whatever output name it's given, so passing
+    ",aff" straight through would produce "name,aff,aff"), that suffix is
+    stripped from "${output}" before invoking, and the file the command
+    actually produces is renamed to match the chosen destination exactly.
     """
 
     def run(self, edit):
@@ -311,26 +325,32 @@ class FileConverterEncodeBufferCommand(sublime_plugin.TextCommand):
         sublime.status_message('FileConverter: encoding...')
         env = _build_env(handler)
         encode_cmd = handler['encode_cmd']
+        suffix = handler.get('encode_output_suffix') or ''
+
+        dest_dir = os.path.dirname(dest_path) or '.'
+        dest_name = os.path.basename(dest_path)
+        output_arg = dest_name[:-len(suffix)] if suffix and dest_name.endswith(suffix) else dest_name
+        produced_path = os.path.join(dest_dir, output_arg + suffix)
+        input_name = '.fileconverter-input-{0}.tmp'.format(uuid.uuid4().hex)
+        input_path = os.path.join(dest_dir, input_name)
 
         def worker():
-            tmp_path = None
             try:
-                fd, tmp_path = tempfile.mkstemp(suffix='.fileconverter-src')
-                with os.fdopen(fd, 'wb') as f:
+                with open(input_path, 'wb') as f:
                     f.write(text.encode('utf-8'))
 
-                argv = _build_argv(encode_cmd, tmp_path)
+                argv = _build_argv(encode_cmd, {'${input}': input_name, '${output}': output_arg})
                 proc = subprocess.Popen(
                     argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                    stdin=subprocess.DEVNULL, env=env)
-                out, err = proc.communicate()
+                    stdin=subprocess.DEVNULL, cwd=dest_dir, env=env)
+                _out, err = proc.communicate()
             except OSError as e:
                 sublime.set_timeout(lambda: sublime.error_message(
                     'FileConverter: failed to launch encode command:\n{0}'.format(e)), 0)
                 return
             finally:
-                if tmp_path and os.path.exists(tmp_path):
-                    os.remove(tmp_path)
+                if os.path.exists(input_path):
+                    os.remove(input_path)
 
             if proc.returncode != 0:
                 message = err.decode('utf-8', 'replace')
@@ -339,12 +359,19 @@ class FileConverterEncodeBufferCommand(sublime_plugin.TextCommand):
                         proc.returncode, message)), 0)
                 return
 
-            try:
-                with open(dest_path, 'wb') as f:
-                    f.write(out)
-            except IOError as e:
+            if not os.path.exists(produced_path):
                 sublime.set_timeout(lambda: sublime.error_message(
-                    'FileConverter: failed to write {0}:\n{1}'.format(dest_path, e)), 0)
+                    'FileConverter: encode command exited successfully but {0} was not created.'.format(
+                        produced_path)), 0)
+                return
+
+            try:
+                if os.path.abspath(produced_path) != os.path.abspath(dest_path):
+                    os.replace(produced_path, dest_path)
+            except OSError as e:
+                sublime.set_timeout(lambda: sublime.error_message(
+                    'FileConverter: encoded {0} but failed to move it to {1}:\n{2}'.format(
+                        produced_path, dest_path, e)), 0)
                 return
 
             sublime.set_timeout(lambda: sublime.status_message(

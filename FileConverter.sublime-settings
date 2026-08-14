@@ -36,16 +36,21 @@
             "env": {}
         },
         {
-            // UNVERIFIED PLACEHOLDER: RISC OS Draw files. riscos-decdrawf /
-            // riscos-mkdrawf's exact command-line shape (stdin vs file
-            // argument, stdout vs an output-file flag) has not been
-            // confirmed yet. Do not rely on this handler until it has been
-            // checked against the real tools.
+            // RISC OS Draw files. Verified against the real tools:
+            // riscos-decdrawf <file> writes a text representation to
+            // stdout; riscos-mkdrawf <infile> <outfile> always appends
+            // ",aff" to whatever outfile name it's given, hence
+            // "encode_output_suffix" below so the plugin strips it before
+            // invoking and renames the result to match the chosen
+            // destination exactly. Round-tripped a real file byte-for-byte
+            // identical except for a benign header field (the tool's own
+            // "Creator" stamp).
             "id": "riscos_drawfile",
             "match": [".*(\\\\|/)*,aff$"],
             "decode_cmd": ["riscos-decdrawf", "${file}"],
             "output_syntax": null,
-            "encode_cmd": ["riscos-mkdrawf", "${file}"],
+            "encode_cmd": ["riscos-mkdrawf", "${input}", "${output}"],
+            "encode_output_suffix": ",aff",
             "env": {}
         }
     ]
