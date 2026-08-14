@@ -478,7 +478,12 @@ class FileConverterRevealSourceCommand(sublime_plugin.TextCommand):
     """Reveals the source file this decoded view came from, in the system
     file manager. The decoded view has no file_name() of its own to reveal
     -- that's deliberate -- so this uses the source path stashed in the
-    view's settings at decode time instead."""
+    view's settings at decode time instead.
+
+    The Windows branch is untested -- this package as a whole isn't
+    supported on Windows (see README) -- kept only as a harmless
+    best-effort for anyone running it there manually outside Package
+    Control."""
 
     def run(self, edit):
         source_path = _view_source_path(self.view)

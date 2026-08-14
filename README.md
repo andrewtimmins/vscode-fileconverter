@@ -13,6 +13,14 @@ as it's opened. The engine itself is generic — it doesn't know anything
 about RISC OS — so it can be pointed at any external tool and any filename
 pattern by editing settings, no code changes required.
 
+**Platform support: macOS and Linux only.** Every shipped handler depends
+on Unix tooling (the RISC OS handlers on a Docker-based toolchain built
+for Unix hosts; the generic examples on `xxd`/`objdump`/`exiftool`), the
+`riscos_ccres` handler's decode command relies on `/dev/stdout`, and
+`FileConverterRevealSourceCommand` shells out to `open`/`xdg-open`. None
+of that has a Windows equivalent built in, so this isn't tested or
+supported there.
+
 ## How it works
 
 When a file matching one of the configured patterns is opened, its stdout

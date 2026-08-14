@@ -14,5 +14,13 @@
     {
         "caption": "FileConverter: Copy Source Path",
         "command": "file_converter_copy_source_path"
+    },
+    {
+        "caption": "Preferences: FileConverter Settings",
+        "command": "edit_settings",
+        "args": {
+            "base_file": "${packages}/FileConverter/FileConverter.sublime-settings",
+            "default": "// FileConverter Settings -- User\n{\n\t$0\n}\n"
+        }
     }
 ]
