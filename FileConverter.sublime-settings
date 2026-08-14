@@ -57,19 +57,23 @@
             "env": {}
         },
         {
-            // RISC OS Wimp Template files. Verified against the real tool:
-            // riscos-ccres <infile> <outfile> has no stdout mode of its own
-            // (always writes to a real output file), but happily accepts
-            // "/dev/stdout" as that argument, so it can still stream like
-            // the other handlers. It auto-detects direction from the input
-            // file's content, so the same command does both directions;
-            // writes exactly to the given output name (no auto-appended
-            // suffix, unlike riscos-mkdrawf). Round-tripped a real file:
-            // decode -> encode -> decode again produced identical text
-            // (the binary itself differs in size -- normal compiler-style
-            // repacking, not corruption).
-            "id": "riscos_template",
-            "match": [".*(\\\\|/)*,fec$"],
+            // RISC OS Wimp Template (,fec) and Toolbox Resource (,fae)
+            // files -- both handled by the same tool. Verified against the
+            // real tool: riscos-ccres <infile> <outfile> has no stdout
+            // mode of its own (always writes to a real output file), but
+            // happily accepts "/dev/stdout" as that argument, so it can
+            // still stream like the other handlers. It auto-detects both
+            // the source filetype and the decode/encode direction from the
+            // input file's content, so one command handles both formats
+            // and both directions; writes exactly to the given output name
+            // (no auto-appended suffix, unlike riscos-mkdrawf).
+            // Round-tripped a real Template file: decode -> encode ->
+            // decode again produced identical text (the binary itself
+            // differs in size -- normal compiler-style repacking, not
+            // corruption). Confirmed decoding a real Resource (,fae) file
+            // too.
+            "id": "riscos_ccres",
+            "match": [".*(\\\\|/)*,fec$", ".*(\\\\|/)*,fae$"],
             "decode_cmd": ["riscos-ccres", "${file}", "/dev/stdout"],
             // ccres's brace-delimited text format highlights nicely with
             // Generic Config too, same as the drawfile handler above.
