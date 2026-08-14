@@ -45,6 +45,7 @@ def _compile_handlers(settings):
             'id': h.get('id', ''),
             'patterns': patterns,
             'decode_cmd': h.get('decode_cmd'),
+            'decode_mode': h.get('decode_mode') or 'stdout',
             'output_syntax': h.get('output_syntax'),
             'encode_cmd': h.get('encode_cmd'),
             'encode_output_suffix': h.get('encode_output_suffix') or '',
@@ -168,6 +169,62 @@ class DecodeProcess(object):
             stderr_chunks.append(chunk)
 
 
+class FileDecodeProcess(object):
+    """Runs a decode command that writes its result to an output *file*
+    rather than stdout -- eg riscos-ccres, which has no stdout mode at all.
+    Not a true incremental stream (the tool doesn't support one): the whole
+    output file is read and delivered via a single on_data() call once the
+    command finishes. Follows the same on_data/on_done contract as
+    DecodeProcess so callers don't need to care which one they got.
+    """
+
+    def __init__(self, argv, env, cwd, output_path, on_data, on_done):
+        self.argv = argv
+        self.env = env
+        self.cwd = cwd
+        self.output_path = output_path
+        self.on_data = on_data
+        self.on_done = on_done
+
+    def start(self):
+        thread = threading.Thread(target=self._run)
+        thread.daemon = True
+        thread.start()
+
+    def _run(self):
+        try:
+            proc = subprocess.Popen(
+                self.argv,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                stdin=subprocess.DEVNULL,
+                cwd=self.cwd,
+                env=self.env,
+            )
+            _out, err = proc.communicate()
+        except OSError as e:
+            sublime.set_timeout(lambda: self.on_done(None, str(e)), 0)
+            return
+
+        exit_code = proc.returncode
+        stderr_text = err.decode('utf-8', 'replace')
+
+        if exit_code == 0:
+            try:
+                with open(self.output_path, 'rb') as f:
+                    text = f.read().decode('utf-8', 'replace')
+                if text:
+                    self.on_data(text)
+            except IOError as e:
+                exit_code = -1
+                stderr_text = 'command exited successfully but output could not be read: {0}'.format(e)
+            finally:
+                if os.path.exists(self.output_path):
+                    os.remove(self.output_path)
+
+        sublime.set_timeout(lambda: self.on_done(exit_code, stderr_text), 0)
+
+
 def run_decode(window, source_path, handler, source_view=None):
     """Shared entry point for both the auto-load trigger and the manual
     "Decode File" command: streams handler['decode_cmd']'s stdout into a
@@ -199,8 +256,8 @@ def run_decode(window, source_path, handler, source_view=None):
     # tools (verified with a Docker-wrapped riscos-mkdrawf) only resolve
     # paths correctly relative to the process's working directory.
     cwd = os.path.dirname(source_path) or '.'
-    argv = _build_argv(handler['decode_cmd'], {'${file}': os.path.basename(source_path)})
     env = _build_env(handler)
+    decode_mode = handler.get('decode_mode') or 'stdout'
 
     def on_data(text):
         new_view.run_command('append', {'characters': text, 'force': True, 'scroll_to_end': True})
@@ -233,7 +290,22 @@ def run_decode(window, source_path, handler, source_view=None):
         if source_view is not None and source_view.is_valid():
             source_view.close()
 
-    DecodeProcess(argv, env, cwd, on_data, on_done).start()
+    if decode_mode == 'file':
+        # This tool has no stdout mode at all (verified with riscos-ccres):
+        # it always writes its result to an output file argument. Give it
+        # a throwaway relative name in the same directory (same reasoning
+        # as the cwd/basename choice above) and read the whole thing back
+        # once it's finished.
+        output_name = '.fileconverter-decode-{0}.tmp'.format(uuid.uuid4().hex)
+        output_path = os.path.join(cwd, output_name)
+        argv = _build_argv(handler['decode_cmd'], {
+            '${file}': os.path.basename(source_path),
+            '${output}': output_name,
+        })
+        FileDecodeProcess(argv, env, cwd, output_path, on_data, on_done).start()
+    else:
+        argv = _build_argv(handler['decode_cmd'], {'${file}': os.path.basename(source_path)})
+        DecodeProcess(argv, env, cwd, on_data, on_done).start()
 
 
 class FileConverterLoadListener(sublime_plugin.EventListener):

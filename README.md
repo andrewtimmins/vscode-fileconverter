@@ -49,6 +49,17 @@ Handlers are defined in `FileConverter.sublime-settings`, as a list under
     // Docker-wrapped riscos-mkdrawf) only resolve paths correctly relative
     // to the working directory.
     "decode_cmd": ["riscos-dumpi", "${file}"],
+    // Most decode commands write their result to stdout (the default).
+    // Some tools (eg riscos-ccres) have no stdout mode at all and always
+    // write to a file -- set "decode_mode": "file" for those, and include
+    // "${output}" in decode_cmd for the (relative) output filename the
+    // plugin generates; its content is read back once the command exits.
+    // This isn't a true incremental stream (the tool doesn't offer one):
+    // the whole result appears at once. If the tool happens to accept
+    // "/dev/stdout" as a plain output-file argument, prefer that instead
+    // (as the riscos_template handler below does) to get real streaming
+    // via the default "stdout" mode.
+    "decode_mode": "stdout",
     // Optional syntax to apply to the decoded view.
     "output_syntax": "Packages/ARM Assembly/Syntaxes/ARM Assembly.tmLanguage",
     // Optional reverse-direction command (argv list). "${input}" is
