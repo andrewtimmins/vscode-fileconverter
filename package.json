@@ -1,0 +1,321 @@
+{
+  "name": "fileconverter",
+  "displayName": "FileConverter",
+  "description": "Open files matching a configured pattern by running them through an external command, instead of loading the raw file as text.",
+  "version": "0.1.3",
+  "publisher": "andrewtimmins",
+  "license": "MIT",
+  "author": {
+    "name": "Charles Ferguson",
+    "url": "https://github.com/gerph"
+  },
+  "contributors": [
+    {
+      "name": "Andrew Timmins",
+      "url": "https://github.com/andrewtimmins"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/andrewtimmins/vscode-fileconverter.git"
+  },
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "riscos",
+    "disassembly",
+    "binary",
+    "hexdump",
+    "converter"
+  ],
+  "main": "./out/src/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "fileconverter.decodeFile",
+        "title": "Decode File",
+        "category": "FileConverter"
+      },
+      {
+        "command": "fileconverter.encodeBuffer",
+        "title": "Re-encode As…",
+        "category": "FileConverter"
+      },
+      {
+        "command": "fileconverter.revealSource",
+        "title": "Reveal Source File",
+        "category": "FileConverter"
+      },
+      {
+        "command": "fileconverter.copySourcePath",
+        "title": "Copy Source Path",
+        "category": "FileConverter"
+      },
+      {
+        "command": "fileconverter.openSettings",
+        "title": "Open Settings",
+        "category": "FileConverter"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "fileconverter.encodeBuffer",
+          "when": "fileconverter.activeCanEncode"
+        },
+        {
+          "command": "fileconverter.revealSource",
+          "when": "fileconverter.activeHasSource"
+        },
+        {
+          "command": "fileconverter.copySourcePath",
+          "when": "fileconverter.activeHasSource"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "fileconverter.decodeFile",
+          "group": "navigation@99"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "fileconverter.encodeBuffer",
+          "when": "fileconverter.activeCanEncode",
+          "group": "fileconverter@1"
+        },
+        {
+          "command": "fileconverter.revealSource",
+          "when": "fileconverter.activeHasSource",
+          "group": "fileconverter@2"
+        },
+        {
+          "command": "fileconverter.copySourcePath",
+          "when": "fileconverter.activeHasSource",
+          "group": "fileconverter@3"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "FileConverter",
+      "properties": {
+        "fileconverter.env": {
+          "type": "object",
+          "default": {},
+          "additionalProperties": {
+            "type": "string"
+          },
+          "markdownDescription": "Environment variables merged into every handler's subprocess environment, on top of the environment VS Code itself was launched with. A handler's own `env` is merged on top of this."
+        },
+        "fileconverter.handlers": {
+          "type": "array",
+          "markdownDescription": "Handlers matching a file path pattern to the external command that decodes it. Commands are resolved via `PATH` by default, so this setting is not tied to any one machine's install layout. If a command name resolves to the wrong executable, give an absolute path instead, and/or use `env` for any environment variables the tool needs.",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "match",
+              "decode_cmd"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier for this handler."
+              },
+              "match": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Regular expressions tried against the full file path. The first handler with a matching pattern wins."
+              },
+              "decode_cmd": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "markdownDescription": "Command used to decode the file, as an argv array. The argument `${file}` is replaced with the file's basename (the command runs with its working directory set to the file's own directory). In `file` decode mode, `${output}` is replaced with a temporary output name."
+              },
+              "decode_mode": {
+                "type": "string",
+                "enum": [
+                  "stdout",
+                  "file"
+                ],
+                "default": "stdout",
+                "markdownDescription": "`stdout` streams the command's standard output as it is produced. `file` is for tools with no stdout mode at all: they are given a temporary `${output}` path, which is read back in full once the command exits."
+              },
+              "language": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "default": null,
+                "markdownDescription": "Language identifier applied to the decoded document for syntax highlighting, e.g. `arm`. Ignored if no installed extension provides that language."
+              },
+              "encode_cmd": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                },
+                "default": null,
+                "markdownDescription": "Command used to convert the decoded text back to the original binary format, as an argv array, with `${input}` and `${output}` replaced by the input and output basenames. When null, the decoded document is opened read-only."
+              },
+              "encode_output_suffix": {
+                "type": "string",
+                "default": "",
+                "markdownDescription": "Suffix the encode command appends to whatever output name it is given (e.g. `,aff` for `riscos-mkdrawf`). Stripped from `${output}` before invoking, so the result matches the chosen destination exactly."
+              },
+              "env": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "default": {},
+                "description": "Environment variables for this handler's subprocesses, merged on top of fileconverter.env."
+              }
+            }
+          },
+          "default": [
+            {
+              "id": "riscos_module",
+              "match": [
+                ".*(\\\\|/)*,ff8$",
+                ".*(\\\\|/)*,ffa$",
+                ".*(\\\\|/)*,ffc$"
+              ],
+              "decode_cmd": [
+                "riscos-dumpi",
+                "${file}"
+              ],
+              "language": "arm",
+              "encode_cmd": null,
+              "env": {}
+            },
+            {
+              "id": "riscos_drawfile",
+              "match": [
+                ".*(\\\\|/)*,aff$"
+              ],
+              "decode_cmd": [
+                "riscos-decdrawf",
+                "${file}"
+              ],
+              "language": null,
+              "encode_cmd": [
+                "riscos-mkdrawf",
+                "${input}",
+                "${output}"
+              ],
+              "encode_output_suffix": ",aff",
+              "env": {}
+            },
+            {
+              "id": "riscos_ccres",
+              "match": [
+                ".*(\\\\|/)*,fec$",
+                ".*(\\\\|/)*,fae$"
+              ],
+              "decode_cmd": [
+                "riscos-ccres",
+                "${file}",
+                "/dev/stdout"
+              ],
+              "language": null,
+              "encode_cmd": [
+                "riscos-ccres",
+                "${input}",
+                "${output}"
+              ],
+              "encode_output_suffix": "",
+              "env": {}
+            },
+            {
+              "id": "riscos_basic",
+              "match": [
+                ".*(\\\\|/)*,ffb$"
+              ],
+              "decode_cmd": [
+                "riscos-basicdetokenise",
+                "-i",
+                "${file}"
+              ],
+              "language": null,
+              "encode_cmd": [
+                "riscos-basictokenise",
+                "${input}",
+                "${output}"
+              ],
+              "encode_output_suffix": "",
+              "env": {}
+            },
+            {
+              "id": "hexdump",
+              "match": [
+                ".*\\.bin$"
+              ],
+              "decode_cmd": [
+                "xxd",
+                "${file}"
+              ],
+              "language": null,
+              "encode_cmd": null,
+              "env": {}
+            },
+            {
+              "id": "objdump",
+              "match": [
+                ".*\\.o$"
+              ],
+              "decode_cmd": [
+                "objdump",
+                "-d",
+                "${file}"
+              ],
+              "language": null,
+              "encode_cmd": null,
+              "env": {}
+            },
+            {
+              "id": "exif",
+              "match": [
+                ".*\\.(jpg|jpeg|png|heic)$"
+              ],
+              "decode_cmd": [
+                "exiftool",
+                "${file}"
+              ],
+              "language": null,
+              "encode_cmd": null,
+              "env": {}
+            }
+          ]
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "test": "node --test \"out/tests/**/*.test.js\"",
+    "test:integration": "npm run compile && node out/tests/integration/runTest.js",
+    "vscode:prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/vscode": "^1.75.0",
+    "@vscode/test-electron": "^3.1.0",
+    "typescript": "^5.7.0"
+  }
+}
