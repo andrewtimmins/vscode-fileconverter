@@ -269,12 +269,14 @@ def run_decode(window, source_path, handler, source_view=None):
                 'force': True, 'scroll_to_end': True,
             })
             sublime.error_message('FileConverter: failed to launch decode command:\n{0}'.format(stderr_text))
+            new_view.settings().set('file_converter_decode_failed', True)
         elif exit_code != 0:
             new_view.run_command('append', {
                 'characters': '\n--- stderr (exit {0}) ---\n{1}'.format(exit_code, stderr_text),
                 'force': True, 'scroll_to_end': True,
             })
             sublime.error_message('FileConverter: decode command exited with status {0}.'.format(exit_code))
+            new_view.settings().set('file_converter_decode_failed', True)
         else:
             sublime.status_message('FileConverter: decoded {0}'.format(source_path))
 
@@ -399,7 +401,9 @@ class FileConverterEncodeBufferCommand(sublime_plugin.TextCommand):
 
     def is_enabled(self):
         handler = self._handler()
-        return handler is not None and bool(handler.get('encode_cmd'))
+        if handler is None or not handler.get('encode_cmd'):
+            return False
+        return not self.view.settings().get('file_converter_decode_failed', False)
 
     def _handler(self):
         return find_handler_by_id(self.view.settings().get('file_converter_handler_id'))
